@@ -1,19 +1,39 @@
-async fn fast_alarm() {
-    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
-    println!("The fast ararm is working!");
-}
-async fn slow_alarm() {
-    tokio::time::sleep(std::time::Duration::from_millis(3000)).await;
-    println!("You don't saw this message!");
-}
+use std::net::Ipv4Addr;
+
+use nfq::{Queue, Verdict};
+use pnet::packet::ipv4::Ipv4Packet;
 #[tokio::main]
 async fn main() {
-    tokio::select! {
-        _ = fast_alarm() => {
-            println!("fast alarm work first");
+    let mut queue = Queue::open().unwrap();
+    queue.bind(0).unwrap();
+
+    loop {
+        let mut msg = queue.recv().unwrap();
+        let payload = msg.get_payload();
+
+        if let Some(ipv4) = Ipv4Packet::new(payload) {
+            let src_ip = ipv4.get_source();
+            let dest_ip = ipv4.get_destination();
+            let ttl = ipv4.get_ttl();
         }
-        _ = slow_alarm() => {
-            println!("fast alarm work first");
-        }
+        msg.set_verdict(Verdict::Accept);
+        queue.verdict(msg).unwrap();
     }
+}
+async fn create_wrapper(ip_addr_src: Ipv4Addr, ip_addr_dest: Ipv4Addr, ttl: u8) {
+    //================================================
+    let ip_addr_str = ip_addr_src.to_string();
+    let ip_addr_len = ip_addr_str.len();
+    let do_space = 15 - ip_addr_len;
+    //=================================================
+    println!(" ==========================================");
+    println!("|| From: {}                 {:do_space$}||", ip_addr_src, do_space);
+    println!("|| To: {}                                  ||", ip_addr_dest);
+    println!("|| TTL: {}                                 ||", ttl);
+    println!("||");
+    println!("||");
+    println!("||");
+    println!("||");
+    println!("||");
+    println!(" ============================================")
 }
